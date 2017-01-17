@@ -1,0 +1,6 @@
+*.swp
+results
+*.csv
+*.xlsx
+*.xls
+config/credentials.yml
