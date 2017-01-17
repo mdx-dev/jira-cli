@@ -22,7 +22,8 @@ end
 def get_csv_string(issues)
   string_builder = StringIO.new
 
-  string_builder << "id,key,creator,created,issue type,fix versions\n"
+  string_builder << "id,key,creator,created,issue type,fix versions,reporter,"
+  string_builder << "resolution,resolution_date,status,status category\n"
 
   issues.each do |issue|
     id = issue["id"]
@@ -31,23 +32,37 @@ def get_csv_string(issues)
     created = DateTime.parse(issue["fields"]["created"]).strftime("%m/%d/%Y")
     issue_type = issue["fields"]["issuetype"]["name"]
     reporter = issue["fields"]["reporter"]["name"]
-    resolution = issue["fileds"]["resolution"]["name"]
-    resolution_date = DateTime.parse(issue["fields"]["resolutiondate"]).strftime("%m/%d/%Y")
+    
+    resolution = issue["fields"]["resolution"]
+    if(resolution != nil) then
+      resolution_name = resolution["name"]
+    end
+
+    resolution_date = issue["fields"]["resolutiondate"]
+    if(resolution_date != nil) then
+      resolution_date = DateTime.parse(resolution_date).strftime("%m/%d/%Y")
+    end
 
     fix_versions = ""
     issue["fields"]["fixVersions"].each do |fix_version|
        fix_versions = fix_versions + "#{fix_version['name']} | " 
     end
 
+    status = issue["fields"]["status"]
+    status_name = status["name"]
+    status_category_name = status["statusCategory"]["name"]
+
     string_builder << "#{id},"
     string_builder << "#{key}," 
     string_builder << "#{creator}," 
     string_builder << "#{created}," 
     string_builder << "#{issue_type}," 
-    string_builder << "#{fix_versions}" 
-    string_builder << "#{reporter}" 
-    string_builder << "#{resolution}" 
-    string_builder << "#{resolution_date}" 
+    string_builder << "#{fix_versions}," 
+    string_builder << "#{reporter}," 
+    string_builder << "#{resolution_name}," 
+    string_builder << "#{resolution_date}," 
+    string_builder << "#{status_name}," 
+    string_builder << "#{status_category_name}," 
 
     string_builder << "\n"
   end
@@ -84,6 +99,9 @@ def get_response(start_at,results)
   options = {basic_auth: @auth}
   puts "hitting api..."
   closed = HTTParty.get(path, options)
+
+  puts closed.header.inspect
+
   puts "collecting issues"
   closed["issues"].collect { |issue| results << issue }
   puts "issues in page: #{closed["issues"].size}"
@@ -116,8 +134,4 @@ else
   File.open("results","w") {|f| f.write(Marshal.dump(issues))}
 end
 
-stopwatch = Stopwatch.new
-
 to_csv(issues)
-puts "$$$$$$$$$$$$$$$$$$"
-stopwatch.elapsed_time
