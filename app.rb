@@ -23,7 +23,7 @@ def get_csv_string(issues)
   string_builder = StringIO.new
 
   string_builder << "id,key,creator,created,issue type,fix versions,reporter,"
-  string_builder << "resolution,resolution_date,status,status category\n"
+  string_builder << "resolution,resolution_date,status,status category,labels\n"
 
   issues.each do |issue|
     id = issue["id"]
@@ -52,6 +52,12 @@ def get_csv_string(issues)
     status_name = status["name"]
     status_category_name = status["statusCategory"]["name"]
 
+    labels = issue["fields"]["labels"]
+    label_values = ""
+    labels.each do |label|
+      label_values = label_values + label + "|"
+    end
+
     string_builder << "#{id},"
     string_builder << "#{key}," 
     string_builder << "#{creator}," 
@@ -63,6 +69,7 @@ def get_csv_string(issues)
     string_builder << "#{resolution_date}," 
     string_builder << "#{status_name}," 
     string_builder << "#{status_category_name}," 
+    string_builder << "#{label_values}," 
 
     string_builder << "\n"
   end
