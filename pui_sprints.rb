@@ -77,11 +77,9 @@ end
 def get_latest_sprints()
   puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173"
   puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174"
-  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/222"
 
   blue_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173", @options)
   red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
-  black_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/222", @options)
 
   blue_board_id = 173
   red_board_id = 174
@@ -105,13 +103,6 @@ def get_latest_sprints()
     sprint_sequence = Float(sprint["sequence"])
     if(sprint_sequence >= earliest_sprint_id) then
       latest_sprints[red_board_id] << sprint
-    end
-  end
-
-  black_sprints["sprints"].each do |sprint|
-    sprint_sequence = Float(sprint["sequence"])
-    if(sprint_sequence >= earliest_sprint_id) then
-      latest_sprints[black_board_id] << sprint
     end
   end
 
