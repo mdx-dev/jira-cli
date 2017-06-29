@@ -197,11 +197,8 @@ def get_latest_sprints()
   blue_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173", @options)
   red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
 
-  puts blue_sprints
-
   blue_board_id = 173
   red_board_id = 174
-  black_board_id = 222
 
   earliest_sprint_id = 850
 
