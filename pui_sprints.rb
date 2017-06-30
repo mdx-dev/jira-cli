@@ -1,59 +1,180 @@
 require 'HTTParty'
 
-def get_csv_string(issues)
+BLUE_BOARD_ID = 173
+RED_BOARD_ID = 174
+
+def init()
+  config = YAML.load(File.read('config/credentials.yml'))
+  @auth = {username: config['username'], password: config['password']}
+  @options = {basic_auth: @auth}
+
+  get_cl_arguments()
+end
+
+def get_cl_arguments()
+
+  args = Hash[ ARGV.flat_map{|s| s.scan(/--?([^=\s]+)(?:=(\S+))?/) } ]
+
+  if(args.key?('l')) then
+    @changelog = true
+    puts "changelog on"
+  else
+    @changelog = false
+  end
+
+  if(args.key?('c')) then
+    @cycletimes = true
+    puts "cycle times on"
+  else
+    @cycletimes = false
+  end
+end
+
+def do_it()
+  stopwatch = Stopwatch.new
+
+  puts "$$$$$$$$$$$$$$$$$$"
+
+  latest_sprints = get_latest_sprints()
+  sprint_report_issue_data = get_sprint_report_issue_data(latest_sprints)
+
+  to_sprint_report_csv(sprint_report_issue_data)
+
+  if(@changelog) then
+    puts "expanding the changelog for returned issues"
+    
+    sprint_issue_data = get_sprint_issues_data(latest_sprints)
+    to_changelog_csv(sprint_issue_data)
+
+    if(@cycletimes) then
+      puts "outputing cycle times"
+      to_cycle_times_csv(sprint_issue_data)
+    end
+  end
+
+
+  puts "%%%%%%%%%%% Elapsed Time %%%%%%%%%%%%%"
+  stopwatch.elapsed_time
+  puts "%%%%%%%%%%% Elapsed Time %%%%%%%%%%%%%"
+end
+
+def get_latest_sprints()
+  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173"
+  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174"
+
+  blue_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173", @options)
+  red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
+
+
+  earliest_sprint_id = 657 #Sprint 73
+  #earliest_sprint_id = 935 #Sprint 100
+
+  latest_sprints = Hash.new
+  latest_sprints[BLUE_BOARD_ID] = [] 
+  latest_sprints[RED_BOARD_ID] = [] 
+
+  blue_sprints["sprints"].each do |sprint|
+    sprint_sequence = Float(sprint["sequence"])
+    if(sprint_sequence >= earliest_sprint_id) then
+      latest_sprints[BLUE_BOARD_ID] << sprint
+    end
+  end
+
+  red_sprints["sprints"].each do |sprint|
+    sprint_sequence = Float(sprint["sequence"])
+    if(sprint_sequence >= earliest_sprint_id) then
+      latest_sprints[RED_BOARD_ID] << sprint
+    end
+  end
+
+  latest_sprints
+end
+
+def get_sprint_report_issue_data(latest_sprint_data)
+  sprint_report_issue_data = []
+  latest_sprint_data.each do |key, value|
+     value.each do |sprint|
+       sprint_id = sprint["id"]
+
+       sprint_data = get_sprint_report_issues(key,sprint_id)
+
+       sprint_name = sprint_data["sprint"]["name"]
+       puts sprint_name
+
+       sprint_report_issues = []
+       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :issue_data => issue } }
+       sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :issue_data => issue } }
+       sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :issue_data => issue } }
+     end
+  end
+
+  sprint_report_issue_data
+end
+
+def get_sprint_issues_data(latest_sprint_data)
+  sprint_issue_data = []
+  latest_sprint_data.each do |key, value|
+     value.each do |sprint|
+       sprint_id = sprint["id"]
+       sprint_data = get_sprint_report_issues(key,sprint_id)
+
+       sprint_issues = []
+       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_issues << issue }
+       sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_issues << issue }
+       sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_issues << issue }
+
+       sprint_name = sprint_data["sprint"]["name"]
+       puts sprint_name
+
+       sprint_issues.each do |sprint_issue|
+            sprint_issue_data << get_current_issue_data(sprint_issue["key"], sprint_name)
+       end
+     end
+  end
+
+  sprint_issue_data
+end
+
+def get_sprint_report_issues(rapid_view_id,sprint_id)
+  uri = "https://vitals.atlassian.net/rest/greenhopper/latest/rapid/charts/sprintreport?rapidViewId=#{rapid_view_id}&sprintId=#{sprint_id}"
+  puts uri
+  HTTParty.get(uri, @options)
+end
+
+def get_current_issue_data(issue_key,sprint_name)
+  uri = "https://vitals.atlassian.net/rest/api/latest/search?jql=key=#{issue_key}&expand=changelog"
+  puts uri
+  query_result = HTTParty.get(uri, @options)
+  issues = query_result["issues"]
+  issue_count = issues.count
+  issue_data = nil
+
+  if(issue_count == 1) then
+    issue_data = issues[0]
+  else
+    puts "Error: unexpected results for #{issue_key}. Expected 1 result and got #{issue_count}"
+  end
+
+  issue_sprint_data = {:sprint_name => sprint_name, :issue_data => issue_data }
+end
+
+def get_sprint_report_csv_string(issues)
   string_builder = StringIO.new
 
-  string_builder << "id,key,creator,created,issue type,fix versions,reporter,"
-  string_builder << "resolution,resolution_date,status,status category,labels,story points,sprint name\n"
+  string_builder << "id,key,issue type,status,story points,sprint name\n"
   
   issues.each do |issue|
     id = issue[:issue_data]["id"]
     key = issue[:issue_data]["key"]
     sprint_name = issue[:sprint_name]
-    creator = issue[:issue_data]["fields"]["creator"]["name"]
-    created = DateTime.parse(issue[:issue_data]["fields"]["created"]).strftime("%m/%d/%Y")
-    issue_type = issue[:issue_data]["fields"]["issuetype"]["name"]
-    reporter = issue[:issue_data]["fields"]["reporter"]["name"]
-    
-    resolution = issue[:issue_data]["fields"]["resolution"]
-    if(resolution != nil) then
-      resolution_name = resolution["name"]
-    end
-
-    resolution_date = issue[:issue_data]["fields"]["resolutiondate"]
-    if(resolution_date != nil) then
-      resolution_date = DateTime.parse(resolution_date).strftime("%m/%d/%Y")
-    end
-
-    fix_versions = ""
-    issue[:issue_data]["fields"]["fixVersions"].each do |fix_version|
-       fix_versions = fix_versions + "#{fix_version['name']} | " 
-    end
-
-    status = issue[:issue_data]["fields"]["status"]
-    status_name = status["name"]
-    status_category_name = status["statusCategory"]["name"]
-
-    labels = issue[:issue_data]["fields"]["labels"]
-    label_values = ""
-    labels.each do |label|
-      label_values = label_values + label + "|"
-    end
-
-    story_points = issue[:issue_data]["fields"]["customfield_10004"]
+    issue_type = issue[:issue_data]["typeName"]
+    status = issue[:issue_data]["statusName"]
+    story_points = issue[:issue_data]["estimateStatistic"]["statFieldValue"]["value"]
 
     string_builder << "#{id},"
     string_builder << "#{key}," 
-    string_builder << "#{creator}," 
-    string_builder << "#{created}," 
     string_builder << "#{issue_type}," 
-    string_builder << "#{fix_versions}," 
-    string_builder << "#{reporter}," 
-    string_builder << "#{resolution_name}," 
-    string_builder << "#{resolution_date}," 
-    string_builder << "#{status_name}," 
-    string_builder << "#{status_category_name}," 
-    string_builder << "#{label_values}," 
+    string_builder << "#{status}," 
     string_builder << "#{story_points},"
     string_builder << "#{sprint_name}"
 
@@ -62,10 +183,10 @@ def get_csv_string(issues)
   string_builder.string
 end
 
-def to_csv(issues)
-  out_file = File.new("pui_sprint_results.csv","w+")
+def to_sprint_report_csv(issues)
+  out_file = File.new("pui_sprint_report_results.csv","w+")
 
-  out_file.write(get_csv_string(issues))
+  out_file.write(get_sprint_report_csv_string(issues))
 end
 
 #returns cycle time in minutes
@@ -173,118 +294,23 @@ def to_changelog_csv(issues)
   out_file.write(get_changelog_csv_string(issues))
 end
 
-def get_issue_data(issue_key,sprint_name)
-  uri = "https://vitals.atlassian.net/rest/api/latest/search?jql=key=#{issue_key}&expand=changelog"
-  puts uri
-  query_result = HTTParty.get(uri, @options)
-  issues = query_result["issues"]
-  issue_count = issues.count
-  issue_data = nil
 
-  if(issue_count == 1) then
-    issue_data = issues[0]
-  else
-    puts "Error: unexpected results for #{issue_key}. Expected 1 result and got #{issue_count}"
+class Stopwatch
+ 
+  def initialize()
+    @start = Time.now
   end
-
-  issue_sprint_data = {:sprint_name => sprint_name, :issue_data => issue_data }
-end
-
-def get_latest_sprints()
-  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173"
-  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174"
-
-  blue_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173", @options)
-  red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
-
-  blue_board_id = 173
-  red_board_id = 174
-
-  earliest_sprint_id = 850
-
-  latest_sprints = Hash.new
-  latest_sprints[blue_board_id] = [] 
-  latest_sprints[red_board_id] = [] 
-
-  blue_sprints["sprints"].each do |sprint|
-    sprint_sequence = Float(sprint["sequence"])
-    if(sprint_sequence >= earliest_sprint_id) then
-      latest_sprints[blue_board_id] << sprint
-    end
+   
+  def elapsed_time
+    now = Time.now
+    elapsed = now - @start
+    puts 'Started: ' + @start.to_s
+    puts 'Now: ' + now.to_s
+    puts 'Elapsed time: ' +  elapsed.to_s + ' seconds'
+    elapsed.to_s
   end
-
-  red_sprints["sprints"].each do |sprint|
-    sprint_sequence = Float(sprint["sequence"])
-    if(sprint_sequence >= earliest_sprint_id) then
-      latest_sprints[red_board_id] << sprint
-    end
-  end
-
-  latest_sprints
-end
-
-def get_sprint_issues(rapid_view_id,sprint_id)
-  uri = "https://vitals.atlassian.net/rest/greenhopper/latest/rapid/charts/sprintreport?rapidViewId=#{rapid_view_id}&sprintId=#{sprint_id}"
-  puts uri
-  HTTParty.get(uri, @options)
-end
-
-def get_cl_arguments()
-  args = Hash[ ARGV.flat_map{|s| s.scan(/--?([^=\s]+)(?:=(\S+))?/) } ]
-
-  if(args.key?('c')) then
-    @changelog = true
-    puts "changelog on"
-  end
-end
-
-def init()
-  config = YAML.load(File.read('config/credentials.yml'))
-  @auth = {username: config['username'], password: config['password']}
-  @options = {basic_auth: @auth}
-  @changelog = false
-end
-
-def get_sprint_issues_data(latest_sprint_data)
-  sprint_issue_data = []
-  latest_sprint_data.each do |key, value|
-     value.each do |sprint|
-       sprint_id = sprint["id"]
-       sprint_data = get_sprint_issues(key,sprint_id)
-
-       puts "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
-       puts "found issues:"
-       puts sprint_data["contents"]["completedIssues"]
-       puts "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
-
-       sprint_issues = []
-       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_issues << issue }
-       #sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_issues << issue }
-       #sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_issues << issue }
-
-       sprint_name = sprint_data["sprint"]["name"]
-
-       puts sprint_name
-
-       sprint_issues.each do |sprint_issue|
-            sprint_issue_data << get_issue_data(sprint_issue["key"], sprint_name)
-       end
-     end
-  end
-
-  sprint_issue_data
+   
 end
 
 init()
-get_cl_arguments()
-sprint_issue_data = get_sprint_issues_data(get_latest_sprints())
-
-puts "$$$$$$$$$$$$$$$$$$"
-
-to_csv(sprint_issue_data)
-
-puts "expanding the changelog for returned issues"
-to_changelog_csv(sprint_issue_data)
-
-puts "outputing cycle times"
-to_cycle_times_csv(sprint_issue_data)
+do_it()
