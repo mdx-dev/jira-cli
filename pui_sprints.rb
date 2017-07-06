@@ -66,7 +66,7 @@ def get_latest_sprints()
   red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
 
 
-  earliest_sprint_id = 657 #Sprint 73
+  earliest_sprint_id = 684 #Sprint 73
   #earliest_sprint_id = 935 #Sprint 100
 
   latest_sprints = Hash.new
@@ -102,9 +102,9 @@ def get_sprint_report_issue_data(latest_sprint_data)
        puts sprint_name
 
        sprint_report_issues = []
-       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :issue_data => issue } }
-       sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :issue_data => issue } }
-       sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :issue_data => issue } }
+       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :team_board_id => key, :issue_data => issue } }
+       sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :team_board_id => key, :issue_data => issue } }
+       sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :team_board_id => key, :issue_data => issue } }
      end
   end
 
@@ -161,7 +161,7 @@ end
 def get_sprint_report_csv_string(issues)
   string_builder = StringIO.new
 
-  string_builder << "id,key,issue type,status,story points,sprint name\n"
+  string_builder << "id,key,issue type,status,story points,sprint name, team\n"
   
   issues.each do |issue|
     id = issue[:issue_data]["id"]
@@ -170,13 +170,21 @@ def get_sprint_report_csv_string(issues)
     issue_type = issue[:issue_data]["typeName"]
     status = issue[:issue_data]["statusName"]
     story_points = issue[:issue_data]["estimateStatistic"]["statFieldValue"]["value"]
+    team = "Unknown Team"
+    
+    if(issue[:team_board_id] == RED_BOARD_ID) then
+        team = "Red Team"
+    elsif(issue[:team_board_id] == BLUE_BOARD_ID) then
+        team = "Blue Team"
+    end
 
     string_builder << "#{id},"
     string_builder << "#{key}," 
     string_builder << "#{issue_type}," 
     string_builder << "#{status}," 
     string_builder << "#{story_points},"
-    string_builder << "#{sprint_name}"
+    string_builder << "#{sprint_name},"
+    string_builder << "#{team}"
 
     string_builder << "\n"
   end
