@@ -66,8 +66,8 @@ def get_latest_sprints()
   red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
 
 
-  earliest_sprint_id = 684 #Sprint 73
-  #earliest_sprint_id = 935 #Sprint 100
+  #earliest_sprint_id = 684 #Sprint 73
+  earliest_sprint_id = 935 #Sprint 100
 
   latest_sprints = Hash.new
   latest_sprints[BLUE_BOARD_ID] = [] 
@@ -100,11 +100,12 @@ def get_sprint_report_issue_data(latest_sprint_data)
 
        sprint_name = sprint_data["sprint"]["name"]
        puts sprint_name
+       sprint_end_date = DateTime.parse(sprint_data["sprint"]["endDate"]).strftime("%m/%d/%Y")
 
        sprint_report_issues = []
-       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :team_board_id => key, :issue_data => issue } }
-       sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :team_board_id => key, :issue_data => issue } }
-       sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :team_board_id => key, :issue_data => issue } }
+       sprint_data["contents"]["completedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :sprint_end_date => sprint_end_date, :team_board_id => key, :issue_data => issue } }
+       sprint_data["contents"]["puntedIssues"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :sprint_end_date => sprint_end_date, :team_board_id => key, :issue_data => issue } }
+       sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_report_issue_data <<  {:sprint_name => sprint_name, :sprint_end_date => sprint_end_date, :team_board_id => key, :issue_data => issue } }
      end
   end
 
@@ -161,12 +162,13 @@ end
 def get_sprint_report_csv_string(issues)
   string_builder = StringIO.new
 
-  string_builder << "id,key,issue type,status,story points,sprint name, team\n"
+  string_builder << "id,key,issue type,status,story points,sprint name, sprint end date, team\n"
   
   issues.each do |issue|
     id = issue[:issue_data]["id"]
     key = issue[:issue_data]["key"]
     sprint_name = issue[:sprint_name]
+    sprint_end_date = issue[:sprint_end_date]
     issue_type = issue[:issue_data]["typeName"]
     status = issue[:issue_data]["statusName"]
     story_points = issue[:issue_data]["estimateStatistic"]["statFieldValue"]["value"]
@@ -184,6 +186,7 @@ def get_sprint_report_csv_string(issues)
     string_builder << "#{status}," 
     string_builder << "#{story_points},"
     string_builder << "#{sprint_name},"
+    string_builder << "#{sprint_end_date},"
     string_builder << "#{team}"
 
     string_builder << "\n"
