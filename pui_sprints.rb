@@ -67,7 +67,8 @@ def get_latest_sprints()
 
 
   #earliest_sprint_id = 684 #Sprint 73
-  earliest_sprint_id = 935 #Sprint 100
+  #earliest_sprint_id = 935 #Sprint 100 (17.3)
+  earliest_sprint_id = 850 #Sprint 91 (17.2)
 
   latest_sprints = Hash.new
   latest_sprints[BLUE_BOARD_ID] = [] 
@@ -171,7 +172,7 @@ def get_sprint_report_csv_string(issues)
     sprint_end_date = issue[:sprint_end_date]
     issue_type = issue[:issue_data]["typeName"]
     status = issue[:issue_data]["statusName"]
-    story_points = issue[:issue_data]["estimateStatistic"]["statFieldValue"]["value"]
+    story_points = issue[:issue_data]["currentEstimateStatistic"]["statFieldValue"]["value"]
     team = "Unknown Team"
     
     if(issue[:team_board_id] == RED_BOARD_ID) then
