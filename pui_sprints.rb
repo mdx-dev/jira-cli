@@ -15,13 +15,6 @@ def get_cl_arguments()
 
   args = Hash[ ARGV.flat_map{|s| s.scan(/--?([^=\s]+)(?:=(\S+))?/) } ]
 
-  if(args.key?('l')) then
-    @changelog = true
-    puts "changelog on"
-  else
-    @changelog = false
-  end
-
   if(args.key?('c')) then
     @cycletimes = true
     puts "cycle times on"
@@ -36,22 +29,20 @@ def do_it()
   puts "$$$$$$$$$$$$$$$$$$"
 
   latest_sprints = get_latest_sprints()
-  sprint_report_issue_data = get_sprint_report_issue_data(latest_sprints)
 
-  to_sprint_report_csv(sprint_report_issue_data)
-
-  if(@changelog) then
+  if(@cycletimes) then
     puts "expanding the changelog for returned issues"
     
     sprint_issue_data = get_sprint_issues_data(latest_sprints)
     to_changelog_csv(sprint_issue_data)
 
-    if(@cycletimes) then
-      puts "outputing cycle times"
-      to_cycle_times_csv(sprint_issue_data)
-    end
+    puts "outputing cycle times"
+    to_cycle_times_csv(sprint_issue_data)
   end
 
+  sprint_report_issue_data = get_sprint_report_issue_data(latest_sprints)
+
+  to_sprint_report_csv(sprint_report_issue_data)
 
   puts "%%%%%%%%%%% Elapsed Time %%%%%%%%%%%%%"
   stopwatch.elapsed_time
@@ -100,7 +91,9 @@ def get_sprint_report_issue_data(latest_sprint_data)
        sprint_data = get_sprint_report_issues(key,sprint_id)
 
        sprint_name = sprint_data["sprint"]["name"]
-       puts sprint_name
+
+       puts "Sprint: #{sprint_name}, rapid board: #{key}"
+
        sprint_end_date = DateTime.parse(sprint_data["sprint"]["endDate"]).strftime("%m/%d/%Y")
 
        sprint_report_issues = []
@@ -126,7 +119,8 @@ def get_sprint_issues_data(latest_sprint_data)
        sprint_data["contents"]["issuesNotCompletedInCurrentSprint"].collect { |issue| sprint_issues << issue }
 
        sprint_name = sprint_data["sprint"]["name"]
-       puts sprint_name
+
+       puts "Sprint: #{sprint_name}, rapid board: #{key}"
 
        sprint_issues.each do |sprint_issue|
             sprint_issue_data << get_current_issue_data(sprint_issue["key"], sprint_name)
