@@ -13,4 +13,4 @@ Run the script with the args of your choice:
 
 *ruby pui_sprints.rb [args]*
 
-A file named *pui_sprint_report_results.csv* will be produced in the root directory. IF you run the *-c* option, it will produce a *pui_sprint_cycle_times.csv* file in the root directory.
+A file named *pui_sprint_report_results.csv* will be produced in the root directory. IF you run the *-c* option, it will produce *pui_sprint_cycle_times.csv* and *pui_sprint_results_changelog.csv* in the root directory.
