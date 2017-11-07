@@ -8,3 +8,10 @@ Tool for extracting issue data from Jira.
 ## Args
 - -l produces changelog information for issues
 - -c computes and produces cycle times data
+
+## Usage
+Run the script with the args of your choice:
+
+*ruby pui_sprints.rb [args]*
+
+A file named *pui_sprint_report_results.csv* will be produced in the root directory. IF you run the *-c* option, it will produce a *pui_sprint_cycle_times.csv* file in the root directory.
