@@ -1,0 +1,1 @@
+created >= startOfYear() and created <= endOfYear() and (labels in (IMP_BCBSMA, IMP_BCBSNC, IMP_BCID, IMP_HCSC, IMP_PREMERA, IMP_bcbsnc) or "Client Name" in (AvMed, BCBSKS, BCBSMA, BCBSNC, BCBST, BCID, FirstCare, GroupHealth, HCSC, NHP, HNNY, "MODA Health", Premera, LifeWise))
