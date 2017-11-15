@@ -23,7 +23,8 @@ def get_csv_string(issues)
   string_builder = StringIO.new
 
   string_builder << "id,key,creator,created,issue type,fix versions,reporter,"
-  string_builder << "resolution,resolution_date,status,status category,labels,story points, client name, project\n"
+  string_builder << "resolution,resolution_date,status,status category,labels,"
+  string_builder << "story points, client name, project, cause, client request number\n"
 
   issues.each do |issue|
     id = issue["id"]
@@ -70,6 +71,19 @@ def get_csv_string(issues)
       project_name = project_name["name"]
     end
 
+    creation_causes = issue["fields"]["customfield_12200"]
+    cause_values = ""
+    if(creation_causes != nil) then
+      creation_causes.each do |cause|
+        cause_values = cause_values + cause["value"] + "|"
+      end
+    end
+
+    client_request_number = issue["fields"]["customfield_11100"]
+    if(client_request_number != nil) then
+      client_request_number = client_request_number.gsub(",","|")
+    end
+
     string_builder << "#{id},"
     string_builder << "#{key}," 
     string_builder << "#{creator}," 
@@ -85,6 +99,8 @@ def get_csv_string(issues)
     string_builder << "#{story_points},"
     string_builder << "#{client_name},"
     string_builder << "#{project_name},"
+    string_builder << "#{cause_values},"
+    string_builder << "#{client_request_number},"
 
     string_builder << "\n"
   end
