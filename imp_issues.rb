@@ -22,13 +22,14 @@ end
 def get_csv_string(issues)
   string_builder = StringIO.new
 
-  string_builder << "id,key,creator,created,issue type,fix versions,reporter,"
+  string_builder << "id,key,link,creator,created,issue type,fix versions,reporter,"
   string_builder << "resolution,resolution_date,status,status category,labels,"
   string_builder << "story points, client name, project, cause, client request number\n"
 
   issues.each do |issue|
     id = issue["id"]
     key = issue["key"]
+    link = "https://vitals.atlassian.net/browse/#{key}"
     creator = issue["fields"]["creator"]["name"]
     created = DateTime.parse(issue["fields"]["created"]).strftime("%m/%d/%Y")
     issue_type = issue["fields"]["issuetype"]["name"]
@@ -85,7 +86,8 @@ def get_csv_string(issues)
     end
 
     string_builder << "#{id},"
-    string_builder << "#{key}," 
+    string_builder << "#{key},"
+    string_builder << "#{link},"
     string_builder << "#{creator}," 
     string_builder << "#{created}," 
     string_builder << "#{issue_type}," 
