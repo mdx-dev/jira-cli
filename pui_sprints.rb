@@ -1,7 +1,6 @@
 require 'HTTParty'
 
-BLUE_BOARD_ID = 173
-RED_BOARD_ID = 174
+VC_BOARD_ID = 43
 
 def init()
   config = YAML.load(File.read('config/credentials.yml'))
@@ -50,35 +49,24 @@ def do_it()
 end
 
 def get_latest_sprints()
-  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173"
-  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174"
+  puts "https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/#{VC_BOARD_ID}"
 
-  blue_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/173", @options)
-  red_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/174", @options)
-
+  vc_sprints = HTTParty.get("https://vitals.atlassian.net/rest/greenhopper/latest/sprintquery/#{VC_BOARD_ID}", @options)
 
   #earliest_sprint_id = 684 #Sprint 73
   #earliest_sprint_id = 935 #Sprint 100 (17.3)
   earliest_sprint_id = 850 #Sprint 91 (17.2)
 
   latest_sprints = Hash.new
-  latest_sprints[BLUE_BOARD_ID] = [] 
-  latest_sprints[RED_BOARD_ID] = [] 
+  latest_sprints[VC_BOARD_ID] = [] 
 
-  blue_sprints["sprints"].each do |sprint|
+  vc_sprints["sprints"].each do |sprint|
     sprint_sequence = Float(sprint["sequence"])
     if(sprint_sequence >= earliest_sprint_id) then
-      latest_sprints[BLUE_BOARD_ID] << sprint
+      latest_sprints[VC_BOARD_ID] << sprint
     end
   end
-
-  red_sprints["sprints"].each do |sprint|
-    sprint_sequence = Float(sprint["sequence"])
-    if(sprint_sequence >= earliest_sprint_id) then
-      latest_sprints[RED_BOARD_ID] << sprint
-    end
-  end
-
+  
   latest_sprints
 end
 
@@ -169,10 +157,8 @@ def get_sprint_report_csv_string(issues)
     story_points = issue[:issue_data]["currentEstimateStatistic"]["statFieldValue"]["value"]
     team = "Unknown Team"
     
-    if(issue[:team_board_id] == RED_BOARD_ID) then
-        team = "Red Team"
-    elsif(issue[:team_board_id] == BLUE_BOARD_ID) then
-        team = "Blue Team"
+    if(issue[:team_board_id] == VC_BOARD_ID) then
+      team = "Vitals Choice"
     end
 
     string_builder << "#{id},"
